@@ -104,7 +104,6 @@ func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]
 	if _, ok := visisted[nodeOne]; ok {
 		return 0
 	}
-
 	if _, ok := visisted[nodeTwo]; ok {
 		return 0
 	}
@@ -113,17 +112,12 @@ func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]
 		return 0
 	}
 
-	if stepsOne > 1 {
-		visisted[nodeOne] = true
-	}
-
-	if stepsTwo > 1 {
-		visisted[nodeTwo] = true
-	}
-	nodeOneHeatMap := heatmap[nodeOne]
-	nodeTwoHeatMap := heatmap[nodeTwo]
+	visisted[nodeOne] = true
+	visisted[nodeTwo] = true
 
 	bestChild := 0
+	nodeOneHeatMap := heatmap[nodeOne]
+	nodeTwoHeatMap := heatmap[nodeTwo]
 	for n := range nodeOneHeatMap {
 		for m := range nodeTwoHeatMap {
 			if m == n {
@@ -131,18 +125,17 @@ func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]
 			}
 
 			nodeOneHeatmapScore := nodeOneHeatMap[n]
-			nodeTwoHeatmapScore := nodeOneHeatMap[m]
+			heatmapScoreNodeOne := nodeOneHeatmapScore + 2
+			nodeTwoHeatmapScore := nodeTwoHeatMap[m]
+			heatmapScoreNodeTwo := nodeTwoHeatmapScore + 2
 
 			newMap := make(map[string]bool)
 			for k, v := range visisted {
 				newMap[k] = v
 			}
 
-			heatmapScoreNodeOne := nodeOneHeatmapScore + 2
-			heatmapScoreNodeTwo := nodeTwoHeatmapScore + 2
-
-			childCount := float64(recTwo(n, m, nodes, heatmap, newMap, stepsOne-(heatmapScoreNodeOne-1), stepsTwo-(heatmapScoreNodeTwo-1)))
-			bestChild = int(math.Max(float64(bestChild), childCount))
+			potentialBestChild := float64(recTwo(n, m, nodes, heatmap, newMap, stepsOne-(heatmapScoreNodeOne-1), stepsTwo-(heatmapScoreNodeTwo-1)))
+			bestChild = int(math.Max(float64(bestChild), potentialBestChild))
 		}
 	}
 
