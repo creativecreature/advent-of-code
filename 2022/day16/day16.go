@@ -62,13 +62,6 @@ func generateHeatmap(nodes map[string]*node) map[string]map[string]int {
 			}
 		}
 
-		// We don't need to visit any zeros
-		for n := range nodeMap {
-			node := nodes[n]
-			if node.rate == 0 {
-				delete(nodeMap, n)
-			}
-		}
 		heatmap[n.name] = nodeMap
 	}
 	return heatmap

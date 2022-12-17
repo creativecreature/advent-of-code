@@ -34,7 +34,7 @@ func TestPartOneRealInput(t *testing.T) {
 }
 
 func TestPartTwoExampleInput(t *testing.T) {
-	input, err := os.Open("./testdata/input.txt")
+	input, err := os.Open("./testdata/example.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
