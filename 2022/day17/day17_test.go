@@ -19,3 +19,16 @@ func TestPartOneExampleInput(t *testing.T) {
 		t.Errorf("wanted %d; got %d", want, got)
 	}
 }
+
+func TestPartOneRealInput(t *testing.T) {
+	input, err := os.Open("./testdata/input.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := 3193
+	got := day17.PartOne(input)
+	if want != got {
+		t.Errorf("wanted %d; got %d", want, got)
+	}
+}

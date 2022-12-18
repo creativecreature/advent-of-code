@@ -1,6 +1,7 @@
 package day17
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"strconv"
@@ -78,7 +79,7 @@ func moveUp(block [][]int) [][]int {
 	return block
 }
 
-var parsedInput = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
+// var parsedInput = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
 
 func createKey(x, y int) string {
 	return fmt.Sprintf("%d-%d", x, y)
@@ -110,6 +111,12 @@ func getNewTop(seen map[string]bool) int {
 }
 
 func PartOne(input io.Reader) int {
+	var parsedInput string
+	scanner := bufio.NewScanner(input)
+	for scanner.Scan() {
+		parsedInput = scanner.Text()
+	}
+
 	// Push the floor into the "seen" map
 	seen := make(map[string]bool)
 	for i := 0; i < 7; i++ {
