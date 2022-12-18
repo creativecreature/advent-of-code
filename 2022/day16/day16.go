@@ -2,6 +2,7 @@ package day16
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"math"
 	"regexp"
@@ -101,7 +102,7 @@ func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]
 		return 0
 	}
 
-	if stepsOne <= 2 && stepsTwo <= 2 {
+	if stepsOne <= 1 && stepsTwo <= 1 {
 		return 0
 	}
 
@@ -152,6 +153,65 @@ func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]
 	return bestChild + total
 }
 
+func recThree(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]map[string]int, visited map[string]bool, stepsOne, stepsTwo int) int {
+	if _, ok := visited[nodeOne]; ok {
+		return 0
+	}
+	if _, ok := visited[nodeTwo]; ok {
+		return 0
+	}
+
+	if stepsOne <= 1 && stepsTwo <= 1 {
+		return 0
+	}
+
+	visited[nodeOne] = true
+	visited[nodeTwo] = true
+
+	bestChild := 0
+	nodeOneHeatMap := heatmap[nodeOne]
+	nodeTwoHeatMap := heatmap[nodeTwo]
+	for n := range nodeOneHeatMap {
+		if nodeOneHeatMap[n] > stepsOne {
+			continue
+		}
+		for m := range nodeTwoHeatMap {
+			if nodeTwoHeatMap[m] > stepsTwo {
+				continue
+			}
+			if m == n {
+				continue
+			}
+
+			nodeOneHeatmapScore := nodeOneHeatMap[n]
+			heatmapScoreNodeOne := nodeOneHeatmapScore + 1
+			nodeTwoHeatmapScore := nodeTwoHeatMap[m]
+			heatmapScoreNodeTwo := nodeTwoHeatmapScore + 1
+
+			newMap := make(map[string]bool)
+			for k, v := range visited {
+				newMap[k] = v
+			}
+
+			potentialBestChild := float64(recTwo(n, m, nodes, heatmap, newMap, stepsOne-(heatmapScoreNodeOne), stepsTwo-(heatmapScoreNodeTwo)))
+			bestChild = int(math.Max(float64(bestChild), potentialBestChild))
+		}
+	}
+
+	total := 0
+	resultOne := (nodes[nodeOne].rate) * stepsOne
+	resultTwo := (nodes[nodeTwo].rate) * stepsTwo
+
+	if stepsOne > 1 {
+		total = total + resultOne
+	}
+
+	if stepsTwo > 1 {
+		total = total + resultTwo
+	}
+	return bestChild + total
+}
+
 func PartOne(input io.Reader) int {
 	nodes := parseInput(input)
 	heatmap := generateHeatmap(nodes)
@@ -162,11 +222,79 @@ func PartOne(input io.Reader) int {
 	return wuu
 }
 
+func pickNode(nodes map[string]*node, visited map[string]bool, heatmap map[string]int, steps int) *node {
+	var bestNode *node
+	bestNodeScore := 0
+	for n := range heatmap {
+		if visited[n] || heatmap[n] > steps {
+			continue
+		}
+		node := nodes[n]
+		if node.rate*steps > bestNodeScore {
+			bestNodeScore = node.rate * steps
+			bestNode = node
+		}
+	}
+
+	return bestNode
+}
+
 func PartTwo(input io.Reader) int {
 	nodes := parseInput(input)
 	heatmap := generateHeatmap(nodes)
-	wuu := recTwo("AA", "AA", nodes, heatmap, map[string]bool{}, 26, 26)
+	total := 0
+	visited := make(map[string]bool)
+	nodeOne, nodeTwo := "AA", "AA"
+	nodeOneSteps, nodeTwoSteps := 26, 26
+	for nodeOneSteps >= 2 || nodeTwoSteps >= 2 {
+		nodeOneHeatmap := heatmap[nodeOne]
+		nodeTwoHeatMap := heatmap[nodeTwo]
+		n1 := pickNode(nodes, visited, nodeOneHeatmap, nodeOneSteps)
+		n2 := pickNode(nodes, visited, nodeTwoHeatMap, nodeTwoSteps)
+
+		if n1 != nil {
+			visited[n1.name] = true
+		}
+		if n2 != nil {
+			visited[n2.name] = true
+		}
+
+		// Check if they picked the same node
+		if n1 != nil && n2 != nil && n1.name == n2.name {
+			if nodeOneHeatmap[n1.name] > nodeTwoHeatMap[n2.name] {
+				n1 = pickNode(nodes, visited, nodeOneHeatmap, nodeOneSteps)
+				if n1 != nil {
+					visited[n1.name] = true
+				}
+			} else {
+				n2 = pickNode(nodes, visited, nodeTwoHeatMap, nodeTwoSteps)
+				if n2 != nil {
+					visited[n2.name] = true
+				}
+			}
+		}
+
+		if n1 != nil {
+			fmt.Printf("N1 opened %s\n", n1.name)
+			nodeOneSteps = nodeOneSteps - (nodeOneHeatmap[n1.name])
+			// Costs one turn to open it
+			nodeTwoSteps--
+			total = total + (n1.rate * nodeOneSteps)
+		}
+		if n2 != nil {
+			fmt.Printf("N2 opened %s\n", n2.name)
+			nodeTwoSteps = nodeTwoSteps - nodeTwoHeatMap[n2.name]
+			// Costs one turn to open it
+			nodeTwoSteps--
+			total = total + (n2.rate * nodeTwoSteps)
+		}
+
+		if n1 == nil && n2 == nil {
+			break
+		}
+	}
+	// wuu := recTwo("AA", "AA", nodes, heatmap, map[string]bool{}, 26, 26)
 
 	// fmt.Println(order)
-	return wuu
+	return total
 }
