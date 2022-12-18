@@ -74,8 +74,8 @@ func generateHeatmap(nodes map[string]*node) map[string]map[string]int {
 	return heatmap
 }
 
-func rec(currentNode string, nodes map[string]*node, heatmap map[string]map[string]int, visisted map[string]bool, steps int) int {
-	if _, ok := visisted[currentNode]; ok {
+func rec(currentNode string, nodes map[string]*node, heatmap map[string]map[string]int, visited map[string]bool, steps int) int {
+	if _, ok := visited[currentNode]; ok {
 		return 0
 	}
 
@@ -83,13 +83,13 @@ func rec(currentNode string, nodes map[string]*node, heatmap map[string]map[stri
 		return 0
 	}
 
-	visisted[currentNode] = true
+	visited[currentNode] = true
 	m := heatmap[currentNode]
 	bestChild := 0
 	for n := range m {
 		i := m[n]
 		newMap := make(map[string]bool)
-		for k, v := range visisted {
+		for k, v := range visited {
 			newMap[k] = v
 		}
 		heatmapScore := i + 2
@@ -100,26 +100,32 @@ func rec(currentNode string, nodes map[string]*node, heatmap map[string]map[stri
 	return bestChild + nodes[currentNode].rate*steps
 }
 
-func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]map[string]int, visisted map[string]bool, stepsOne, stepsTwo int) int {
-	if _, ok := visisted[nodeOne]; ok {
+func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]map[string]int, visited map[string]bool, stepsOne, stepsTwo int) int {
+	if _, ok := visited[nodeOne]; ok {
 		return 0
 	}
-	if _, ok := visisted[nodeTwo]; ok {
-		return 0
-	}
-
-	if stepsOne <= 1 && stepsTwo <= 1 {
+	if _, ok := visited[nodeTwo]; ok {
 		return 0
 	}
 
-	visisted[nodeOne] = true
-	visisted[nodeTwo] = true
+	if stepsOne <= 2 && stepsTwo <= 2 {
+		return 0
+	}
+
+	visited[nodeOne] = true
+	visited[nodeTwo] = true
 
 	bestChild := 0
 	nodeOneHeatMap := heatmap[nodeOne]
 	nodeTwoHeatMap := heatmap[nodeTwo]
 	for n := range nodeOneHeatMap {
+		if nodeOneHeatMap[n] > stepsOne {
+			continue
+		}
 		for m := range nodeTwoHeatMap {
+			if nodeTwoHeatMap[m] > stepsTwo {
+				continue
+			}
 			if m == n {
 				continue
 			}
@@ -130,7 +136,7 @@ func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]
 			heatmapScoreNodeTwo := nodeTwoHeatmapScore + 2
 
 			newMap := make(map[string]bool)
-			for k, v := range visisted {
+			for k, v := range visited {
 				newMap[k] = v
 			}
 
