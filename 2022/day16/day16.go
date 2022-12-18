@@ -2,7 +2,6 @@ package day16
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"math"
 	"regexp"
@@ -17,27 +16,27 @@ type node struct {
 }
 
 type workitem struct {
-	node  *node
+	node  node
 	count int
 }
 
 var pattern = regexp.MustCompile("Valve (?P<name>[A-Z].) has flow rate=(?P<rate>[0-9]+); tunnels? leads? to valves? (?P<nodes>.*)")
 
-func parseInput(input io.Reader) map[string]*node {
+func parseInput(input io.Reader) map[string]node {
 	scanner := bufio.NewScanner(input)
-	nodeMap := make(map[string]*node)
+	nodeMap := make(map[string]node)
 	for scanner.Scan() {
 		match := pattern.FindStringSubmatch(scanner.Text())
 		name := match[pattern.SubexpIndex("name")]
 		rate, _ := strconv.Atoi(match[pattern.SubexpIndex("rate")])
 		nodes := strings.Split(match[pattern.SubexpIndex("nodes")], ", ")
-		node := &node{name, rate, nodes}
+		node := node{name, rate, nodes}
 		nodeMap[name] = node
 	}
 	return nodeMap
 }
 
-func generateHeatmap(nodes map[string]*node) map[string]map[string]int {
+func generateHeatmap(nodes map[string]node) map[string]map[string]int {
 	heatmap := map[string]map[string]int{}
 	for _, n := range nodes {
 		nodeMap := make(map[string]int)
@@ -68,8 +67,8 @@ func generateHeatmap(nodes map[string]*node) map[string]map[string]int {
 	return heatmap
 }
 
-func rec(currentNode string, nodes map[string]*node, heatmap map[string]map[string]int, visited map[string]bool, steps int) int {
-	if _, ok := visited[currentNode]; ok {
+func rec(currentNode string, nodes map[string]node, heatmap map[string]map[string]int, visited map[string]bool, steps int) int {
+	if visited[currentNode] {
 		return 0
 	}
 
@@ -86,215 +85,109 @@ func rec(currentNode string, nodes map[string]*node, heatmap map[string]map[stri
 		for k, v := range visited {
 			newMap[k] = v
 		}
-		heatmapScore := i + 2
-		childCount := float64(rec(n, nodes, heatmap, newMap, steps-(heatmapScore-1)))
+		childCount := float64(rec(n, nodes, heatmap, newMap, steps-(i+1)))
 		bestChild = int(math.Max(float64(bestChild), childCount))
 	}
 
 	return bestChild + nodes[currentNode].rate*steps
 }
 
-func recTwo(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]map[string]int, visited map[string]bool, stepsOne, stepsTwo int) int {
-	if _, ok := visited[nodeOne]; ok {
-		return 0
-	}
-	if _, ok := visited[nodeTwo]; ok {
+func recTwo(currentNode string, nodes map[string]node, heatmap map[string]map[string]int, visited map[string]bool, steps int) int {
+	if visited[currentNode] {
 		return 0
 	}
 
-	if stepsOne <= 1 && stepsTwo <= 1 {
+	if steps <= 1 {
 		return 0
 	}
 
-	visited[nodeOne] = true
-	visited[nodeTwo] = true
-
+	visited[currentNode] = true
+	m := heatmap[currentNode]
 	bestChild := 0
-	nodeOneHeatMap := heatmap[nodeOne]
-	nodeTwoHeatMap := heatmap[nodeTwo]
-	for n := range nodeOneHeatMap {
-		if nodeOneHeatMap[n] > stepsOne {
-			continue
+	for n := range m {
+		i := m[n]
+		newMap := make(map[string]bool)
+		for k, v := range visited {
+			newMap[k] = v
 		}
-		for m := range nodeTwoHeatMap {
-			if nodeTwoHeatMap[m] > stepsTwo {
-				continue
-			}
-			if m == n {
-				continue
-			}
-
-			nodeOneHeatmapScore := nodeOneHeatMap[n]
-			heatmapScoreNodeOne := nodeOneHeatmapScore + 2
-			nodeTwoHeatmapScore := nodeTwoHeatMap[m]
-			heatmapScoreNodeTwo := nodeTwoHeatmapScore + 2
-
-			newMap := make(map[string]bool)
-			for k, v := range visited {
-				newMap[k] = v
-			}
-
-			potentialBestChild := float64(recTwo(n, m, nodes, heatmap, newMap, stepsOne-(heatmapScoreNodeOne-1), stepsTwo-(heatmapScoreNodeTwo-1)))
-			bestChild = int(math.Max(float64(bestChild), potentialBestChild))
-		}
+		heatmapScore := i + 1
+		childCount := float64(rec(n, nodes, heatmap, newMap, steps-(heatmapScore)))
+		bestChild = int(math.Max(float64(bestChild), childCount))
 	}
 
-	total := 0
-	resultOne := (nodes[nodeOne].rate) * stepsOne
-	resultTwo := (nodes[nodeTwo].rate) * stepsTwo
-
-	if stepsOne > 1 {
-		total = total + resultOne
-	}
-
-	if stepsTwo > 1 {
-		total = total + resultTwo
-	}
-	return bestChild + total
-}
-
-func recThree(nodeOne, nodeTwo string, nodes map[string]*node, heatmap map[string]map[string]int, visited map[string]bool, stepsOne, stepsTwo int) int {
-	if _, ok := visited[nodeOne]; ok {
-		return 0
-	}
-	if _, ok := visited[nodeTwo]; ok {
-		return 0
-	}
-
-	if stepsOne <= 1 && stepsTwo <= 1 {
-		return 0
-	}
-
-	visited[nodeOne] = true
-	visited[nodeTwo] = true
-
-	bestChild := 0
-	nodeOneHeatMap := heatmap[nodeOne]
-	nodeTwoHeatMap := heatmap[nodeTwo]
-	for n := range nodeOneHeatMap {
-		if nodeOneHeatMap[n] > stepsOne {
-			continue
-		}
-		for m := range nodeTwoHeatMap {
-			if nodeTwoHeatMap[m] > stepsTwo {
-				continue
-			}
-			if m == n {
-				continue
-			}
-
-			nodeOneHeatmapScore := nodeOneHeatMap[n]
-			heatmapScoreNodeOne := nodeOneHeatmapScore + 1
-			nodeTwoHeatmapScore := nodeTwoHeatMap[m]
-			heatmapScoreNodeTwo := nodeTwoHeatmapScore + 1
-
-			newMap := make(map[string]bool)
-			for k, v := range visited {
-				newMap[k] = v
-			}
-
-			potentialBestChild := float64(recTwo(n, m, nodes, heatmap, newMap, stepsOne-(heatmapScoreNodeOne), stepsTwo-(heatmapScoreNodeTwo)))
-			bestChild = int(math.Max(float64(bestChild), potentialBestChild))
-		}
-	}
-
-	total := 0
-	resultOne := (nodes[nodeOne].rate) * stepsOne
-	resultTwo := (nodes[nodeTwo].rate) * stepsTwo
-
-	if stepsOne > 1 {
-		total = total + resultOne
-	}
-
-	if stepsTwo > 1 {
-		total = total + resultTwo
-	}
-	return bestChild + total
+	return bestChild + nodes[currentNode].rate*steps
 }
 
 func PartOne(input io.Reader) int {
 	nodes := parseInput(input)
 	heatmap := generateHeatmap(nodes)
+	scores := make(map[string]int)
+	visited := make(map[string]bool)
+	calculatePaths("AA", "", visited, 0, 30, scores, heatmap, nodes)
 
-	wuu := rec("AA", nodes, heatmap, map[string]bool{}, 30)
-
-	// fmt.Println(order)
-	return wuu
-}
-
-func pickNode(nodes map[string]*node, visited map[string]bool, heatmap map[string]int, steps int) *node {
-	var bestNode *node
-	bestNodeScore := 0
-	for n := range heatmap {
-		if visited[n] || heatmap[n] > steps {
-			continue
-		}
-		node := nodes[n]
-		if node.rate*steps > bestNodeScore {
-			bestNodeScore = node.rate * steps
-			bestNode = node
+	bestScore := 0
+	for _, score := range scores {
+		if score > bestScore {
+			bestScore = score
 		}
 	}
 
-	return bestNode
+	return bestScore
+}
+
+type path struct {
+	currentNode string
+	path        string
+	score       int
+}
+
+func calculatePaths(current, parent string, seen map[string]bool, score, steps int, scores map[string]int, heatmap map[string]map[string]int, nodes map[string]node) {
+	score = score + (nodes[current].rate * steps)
+	seen[current] = true
+
+	currentHeatmap := heatmap[current]
+	for key := range currentHeatmap {
+		if seen[key] || (currentHeatmap[key])+1 > steps {
+			continue
+		}
+		dist := currentHeatmap[key]
+		newSeen := make(map[string]bool)
+		for k, v := range seen {
+			newSeen[k] = v
+		}
+
+		calculatePaths(key, parent+current, newSeen, score, steps-(dist+1), scores, heatmap, nodes)
+	}
+
+	scores[parent] = score
 }
 
 func PartTwo(input io.Reader) int {
 	nodes := parseInput(input)
 	heatmap := generateHeatmap(nodes)
-	total := 0
+
+	scores := make(map[string]int)
 	visited := make(map[string]bool)
-	nodeOne, nodeTwo := "AA", "AA"
-	nodeOneSteps, nodeTwoSteps := 26, 26
-	for nodeOneSteps >= 2 || nodeTwoSteps >= 2 {
-		nodeOneHeatmap := heatmap[nodeOne]
-		nodeTwoHeatMap := heatmap[nodeTwo]
-		n1 := pickNode(nodes, visited, nodeOneHeatmap, nodeOneSteps)
-		n2 := pickNode(nodes, visited, nodeTwoHeatMap, nodeTwoSteps)
+	calculatePaths("AA", "", visited, 0, 26, scores, heatmap, nodes)
 
-		if n1 != nil {
-			visited[n1.name] = true
-		}
-		if n2 != nil {
-			visited[n2.name] = true
-		}
+	bestScore := 0
+	for pathOne, scoreOne := range scores {
+		for pathTwo, scoreTwo := range scores {
+			if pathOne == pathTwo {
+				continue
+			}
+			if len(pathTwo) < 2 || len(pathOne) < 2 {
+				continue
+			}
 
-		// Check if they picked the same node
-		if n1 != nil && n2 != nil && n1.name == n2.name {
-			if nodeOneHeatmap[n1.name] > nodeTwoHeatMap[n2.name] {
-				n1 = pickNode(nodes, visited, nodeOneHeatmap, nodeOneSteps)
-				if n1 != nil {
-					visited[n1.name] = true
-				}
-			} else {
-				n2 = pickNode(nodes, visited, nodeTwoHeatMap, nodeTwoSteps)
-				if n2 != nil {
-					visited[n2.name] = true
+			if !strings.ContainsAny(pathOne, pathTwo[2:]) && !strings.ContainsAny(pathTwo, pathOne[2:]) {
+				score := scoreOne + scoreTwo
+				if score > bestScore {
+					bestScore = score
 				}
 			}
 		}
-
-		if n1 != nil {
-			fmt.Printf("N1 opened %s\n", n1.name)
-			nodeOneSteps = nodeOneSteps - (nodeOneHeatmap[n1.name])
-			// Costs one turn to open it
-			nodeTwoSteps--
-			total = total + (n1.rate * nodeOneSteps)
-		}
-		if n2 != nil {
-			fmt.Printf("N2 opened %s\n", n2.name)
-			nodeTwoSteps = nodeTwoSteps - nodeTwoHeatMap[n2.name]
-			// Costs one turn to open it
-			nodeTwoSteps--
-			total = total + (n2.rate * nodeTwoSteps)
-		}
-
-		if n1 == nil && n2 == nil {
-			break
-		}
 	}
-	// wuu := recTwo("AA", "AA", nodes, heatmap, map[string]bool{}, 26, 26)
 
-	// fmt.Println(order)
-	return total
+	return bestScore
 }
