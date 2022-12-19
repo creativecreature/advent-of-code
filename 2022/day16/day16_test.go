@@ -8,6 +8,7 @@ import (
 )
 
 func TestPartOneExampleInput(t *testing.T) {
+	t.Parallel()
 	input, err := os.Open("./testdata/example.txt")
 	if err != nil {
 		t.Fatal(err)
@@ -21,6 +22,7 @@ func TestPartOneExampleInput(t *testing.T) {
 }
 
 func TestPartOneRealInput(t *testing.T) {
+	t.Parallel()
 	input, err := os.Open("./testdata/input.txt")
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +36,8 @@ func TestPartOneRealInput(t *testing.T) {
 }
 
 func TestPartTwoExampleInput(t *testing.T) {
-	input, err := os.Open("./testdata/example.txt")
+	t.Parallel()
+	input, err := os.Open("./testdata/input.txt")
 	if err != nil {
 		t.Fatal(err)
 	}

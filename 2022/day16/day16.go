@@ -2,8 +2,8 @@ package day16
 
 import (
 	"bufio"
+	"fmt"
 	"io"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -36,15 +36,11 @@ func parseInput(input io.Reader) map[string]node {
 	return nodeMap
 }
 
-func generateHeatmap(nodes map[string]node) map[string]map[string]int {
-	heatmap := map[string]map[string]int{}
+func generateNodeMaps(nodes map[string]node) map[string]map[string]int {
+	nodemap := map[string]map[string]int{}
 	for _, n := range nodes {
 		nodeMap := make(map[string]int)
 		queue := []workitem{{n, 0}}
-
-		if n.rate == 0 && n.name != "AA" {
-			continue
-		}
 
 		for len(queue) > 0 {
 			currentItem := queue[0]
@@ -62,68 +58,48 @@ func generateHeatmap(nodes map[string]node) map[string]map[string]int {
 			}
 		}
 
-		heatmap[n.name] = nodeMap
+		// Cleanup any nodes that gives us 0
+		for n := range nodeMap {
+			if nodes[n].rate == 0 && nodes[n].name != "AA" {
+				delete(nodeMap, n)
+			}
+		}
+
+		nodemap[n.name] = nodeMap
 	}
-	return heatmap
+	return nodemap
 }
 
-func rec(currentNode string, nodes map[string]node, heatmap map[string]map[string]int, visited map[string]bool, steps int) int {
-	if visited[currentNode] {
-		return 0
-	}
-
-	if steps <= 1 {
-		return 0
-	}
-
-	visited[currentNode] = true
-	m := heatmap[currentNode]
-	bestChild := 0
-	for n := range m {
-		i := m[n]
-		newMap := make(map[string]bool)
-		for k, v := range visited {
-			newMap[k] = v
+func calculatePaths(current, path string, seen map[string]bool, score, stepsLeft int, scores map[string]int, nodemaps map[string]map[string]int, nodes map[string]node) {
+	score = score + (nodes[current].rate * stepsLeft)
+	seen[current] = true
+	currentNodemap := nodemaps[current]
+	for key, dist := range currentNodemap {
+		if seen[key] {
+			continue
 		}
-		childCount := float64(rec(n, nodes, heatmap, newMap, steps-(i+1)))
-		bestChild = int(math.Max(float64(bestChild), childCount))
-	}
-
-	return bestChild + nodes[currentNode].rate*steps
-}
-
-func recTwo(currentNode string, nodes map[string]node, heatmap map[string]map[string]int, visited map[string]bool, steps int) int {
-	if visited[currentNode] {
-		return 0
-	}
-
-	if steps <= 1 {
-		return 0
-	}
-
-	visited[currentNode] = true
-	m := heatmap[currentNode]
-	bestChild := 0
-	for n := range m {
-		i := m[n]
-		newMap := make(map[string]bool)
-		for k, v := range visited {
-			newMap[k] = v
+		if dist+1 > stepsLeft {
+			continue
 		}
-		heatmapScore := i + 1
-		childCount := float64(rec(n, nodes, heatmap, newMap, steps-(heatmapScore)))
-		bestChild = int(math.Max(float64(bestChild), childCount))
+		newSeen := make(map[string]bool)
+		for k, v := range seen {
+			newSeen[k] = v
+		}
+
+		calculatePaths(key, path+current, newSeen, score, stepsLeft-(dist+1), scores, nodemaps, nodes)
 	}
 
-	return bestChild + nodes[currentNode].rate*steps
+	if score > scores[path+current] {
+		scores[path+current] = score
+	}
 }
 
 func PartOne(input io.Reader) int {
 	nodes := parseInput(input)
-	heatmap := generateHeatmap(nodes)
+	nodemaps := generateNodeMaps(nodes)
 	scores := make(map[string]int)
 	visited := make(map[string]bool)
-	calculatePaths("AA", "", visited, 0, 30, scores, heatmap, nodes)
+	calculatePaths("AA", "", visited, 0, 30, scores, nodemaps, nodes)
 
 	bestScore := 0
 	for _, score := range scores {
@@ -135,59 +111,41 @@ func PartOne(input io.Reader) int {
 	return bestScore
 }
 
-type path struct {
-	currentNode string
-	path        string
-	score       int
-}
-
-func calculatePaths(current, parent string, seen map[string]bool, score, steps int, scores map[string]int, heatmap map[string]map[string]int, nodes map[string]node) {
-	score = score + (nodes[current].rate * steps)
-	seen[current] = true
-
-	currentHeatmap := heatmap[current]
-	for key := range currentHeatmap {
-		if seen[key] || (currentHeatmap[key])+1 > steps {
-			continue
-		}
-		dist := currentHeatmap[key]
-		newSeen := make(map[string]bool)
-		for k, v := range seen {
-			newSeen[k] = v
-		}
-
-		calculatePaths(key, parent+current, newSeen, score, steps-(dist+1), scores, heatmap, nodes)
-	}
-
-	scores[parent] = score
-}
-
 func PartTwo(input io.Reader) int {
 	nodes := parseInput(input)
-	heatmap := generateHeatmap(nodes)
-
+	nodemaps := generateNodeMaps(nodes)
 	scores := make(map[string]int)
 	visited := make(map[string]bool)
-	calculatePaths("AA", "", visited, 0, 26, scores, heatmap, nodes)
+	calculatePaths("AA", "", visited, 0, 26, scores, nodemaps, nodes)
 
+	bestPathOne := ""
+	bestPathTwo := ""
 	bestScore := 0
 	for pathOne, scoreOne := range scores {
 		for pathTwo, scoreTwo := range scores {
-			if pathOne == pathTwo {
-				continue
-			}
-			if len(pathTwo) < 2 || len(pathOne) < 2 {
+			if len(pathOne) < 2 || len(pathTwo) < 2 {
 				continue
 			}
 
 			if !strings.ContainsAny(pathOne, pathTwo[2:]) && !strings.ContainsAny(pathTwo, pathOne[2:]) {
 				score := scoreOne + scoreTwo
 				if score > bestScore {
+					bestPathOne = pathOne
+					bestPathTwo = pathTwo
 					bestScore = score
 				}
 			}
 		}
 	}
+
+	// These are the two paths we want for the example input:
+	// "AADDHHEE"
+	// "AAJJBBCC"
+	fmt.Println(bestPathOne)
+	fmt.Println(bestPathTwo)
+	score := scores["AADDHHEE"] + scores["AAJJBBCC"]
+	fmt.Println("COMBINED")
+	fmt.Println(score)
 
 	return bestScore
 }
