@@ -71,8 +71,10 @@ func generateNodeMaps(nodes map[string]node) map[string]map[string]int {
 }
 
 func calculatePaths(current, path string, seen map[string]bool, score, stepsLeft int, scores map[string]int, nodemaps map[string]map[string]int, nodes map[string]node) {
-	score = score + (nodes[current].rate * stepsLeft)
 	seen[current] = true
+	score = score + (nodes[current].rate * stepsLeft)
+	scores[path+current] = score
+
 	currentNodemap := nodemaps[current]
 	for key, dist := range currentNodemap {
 		if seen[key] {
@@ -85,12 +87,7 @@ func calculatePaths(current, path string, seen map[string]bool, score, stepsLeft
 		for k, v := range seen {
 			newSeen[k] = v
 		}
-
 		calculatePaths(key, path+current, newSeen, score, stepsLeft-(dist+1), scores, nodemaps, nodes)
-	}
-
-	if score > scores[path+current] {
-		scores[path+current] = score
 	}
 }
 
@@ -118,15 +115,19 @@ func PartTwo(input io.Reader) int {
 	visited := make(map[string]bool)
 	calculatePaths("AA", "", visited, 0, 26, scores, nodemaps, nodes)
 
-	bestPathOne := ""
-	bestPathTwo := ""
+	// This is a kinda hacky way to reduce the number of paths
+	for s := range scores {
+		if len(s) < 8 || scores[s] < 700 {
+			delete(scores, s)
+		}
+	}
+
+	// These are the two paths we want for the example input:
+	// "AADDHHEE" "AAJJBBCC"
+	bestPathOne, bestPathTwo := "", ""
 	bestScore := 0
 	for pathOne, scoreOne := range scores {
 		for pathTwo, scoreTwo := range scores {
-			if len(pathOne) < 2 || len(pathTwo) < 2 {
-				continue
-			}
-
 			if !strings.ContainsAny(pathOne, pathTwo[2:]) && !strings.ContainsAny(pathTwo, pathOne[2:]) {
 				score := scoreOne + scoreTwo
 				if score > bestScore {
@@ -138,14 +139,9 @@ func PartTwo(input io.Reader) int {
 		}
 	}
 
-	// These are the two paths we want for the example input:
-	// "AADDHHEE"
-	// "AAJJBBCC"
 	fmt.Println(bestPathOne)
 	fmt.Println(bestPathTwo)
-	score := scores["AADDHHEE"] + scores["AAJJBBCC"]
 	fmt.Println("COMBINED")
-	fmt.Println(score)
 
 	return bestScore
 }
