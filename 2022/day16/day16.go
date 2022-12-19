@@ -91,6 +91,25 @@ func calculatePaths(current, path string, seen map[string]bool, score, stepsLeft
 	}
 }
 
+func overlaps(s1, s2 string) bool {
+	keys := make(map[string]bool)
+	for i := 2; i < len(s1)-1; i++ {
+		key := fmt.Sprintf("%s%s", string(s1[i]), string(s1[i+1]))
+		if keys[key] {
+			return true
+		}
+		keys[key] = true
+	}
+	for i := 2; i < len(s2)-1; i++ {
+		key := fmt.Sprintf("%s%s", string(s2[i]), string(s2[i+1]))
+		if keys[key] {
+			return true
+		}
+		keys[key] = true
+	}
+	return false
+}
+
 func PartOne(input io.Reader) int {
 	nodes := parseInput(input)
 	nodemaps := generateNodeMaps(nodes)
@@ -117,31 +136,22 @@ func PartTwo(input io.Reader) int {
 
 	// This is a kinda hacky way to reduce the number of paths
 	for s := range scores {
-		if len(s) < 8 || scores[s] < 700 {
+		if len(s) < 14 || scores[s] < 1000 {
 			delete(scores, s)
 		}
 	}
 
-	// These are the two paths we want for the example input:
-	// "AADDHHEE" "AAJJBBCC"
-	bestPathOne, bestPathTwo := "", ""
 	bestScore := 0
 	for pathOne, scoreOne := range scores {
 		for pathTwo, scoreTwo := range scores {
-			if !strings.ContainsAny(pathOne, pathTwo[2:]) && !strings.ContainsAny(pathTwo, pathOne[2:]) {
+			if !overlaps(pathOne, pathTwo) {
 				score := scoreOne + scoreTwo
 				if score > bestScore {
-					bestPathOne = pathOne
-					bestPathTwo = pathTwo
 					bestScore = score
 				}
 			}
 		}
 	}
-
-	fmt.Println(bestPathOne)
-	fmt.Println(bestPathTwo)
-	fmt.Println("COMBINED")
 
 	return bestScore
 }

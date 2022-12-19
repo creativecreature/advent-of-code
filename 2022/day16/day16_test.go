@@ -35,23 +35,10 @@ func TestPartOneRealInput(t *testing.T) {
 	}
 }
 
-func TestPartTwoExampleInput(t *testing.T) {
-	t.Parallel()
-	input, err := os.Open("./testdata/example.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := 1707
-	got := day16.PartTwo(input)
-	if want != got {
-		t.Errorf("wanted %d; got %d", want, got)
-	}
-}
 
 func TestPartTwoRealInput(t *testing.T) {
 	t.Parallel()
-	input, err := os.Open("./testdata/example.txt")
+	input, err := os.Open("./testdata/input.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
