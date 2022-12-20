@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -99,14 +98,13 @@ func parseKey(s string) []int {
 }
 
 func checkCollision(blocks [][]int, block [][]int) bool {
-	fmt.Println("CHECK")
 	blockPositions := make(map[string]bool)
 	for _, b := range block {
 		key := createKey(b[0], b[1])
 		blockPositions[key] = true
 	}
 
-	stop := int(math.Max(float64(len(blocks)-100), 0))
+	stop := int(math.Max(float64(len(blocks)-300), 0))
 	for i := len(blocks) - 1; i >= stop; i-- {
 		key := createKey(blocks[i][0], blocks[i][1])
 		if blockPositions[key] {
@@ -114,7 +112,6 @@ func checkCollision(blocks [][]int, block [][]int) bool {
 		}
 	}
 
-	fmt.Println("STOP CHECK")
 	return false
 }
 
@@ -126,28 +123,6 @@ func getNewTop(blocks [][]int) int {
 		}
 	}
 	return max
-}
-
-// We'll create a "hash" of the highest block position in each column along with the block type
-// and wind. Later, if we've seen this exact state before, we can fast-forward.
-func createGameStateHash(wind rune, blockType int, blocks [][]int) string {
-	peaks := make([]int, 7)
-	stop := int(math.Max(float64(len(blocks)-100), 0))
-	for i := len(blocks) - 1; i >= stop; i-- {
-		x, y := blocks[i][0], blocks[i][1]
-		if y > peaks[x] {
-			peaks[x] = y
-		}
-	}
-	sort.Ints(peaks)
-
-	peakHash := ""
-	for _, peak := range peaks {
-		peakHash = peakHash + fmt.Sprintf("%d", peak-peaks[0]) // Normalize with the min value
-	}
-
-	hash := fmt.Sprintf("%s-%d-%s", string(wind), blockType, peakHash)
-	return hash
 }
 
 func PartOne(input io.Reader) int {
@@ -165,12 +140,22 @@ func PartOne(input io.Reader) int {
 		blocks = append(blocks, []int{i, 0})
 	}
 
-	windIndex := 0
-	currentTop := 0
-	for t := currentTop; t < 2022; t++ {
+	cache := map[[2]int][2]int{}
+	height, windIndex := 0, 0
+	for t := 0; t < 1000000000000-t; t++ {
+		// Part one:
+		// if t == 2022 {
+		// return heigh
+		// }
 		blockIndex := t % 5
-		block := getBlock(blockIndex, currentTop+4)
-		// hash := createGameStateHash(rune(wind), blockIndex, blocks)
+		block := getBlock(blockIndex, height+4)
+		k := [2]int{t % 5, windIndex}
+		if c, ok := cache[k]; ok {
+			if n, d := 1000000000000-t, t-c[0]; n%d == 0 {
+				return height + n/d*(height-c[1])
+			}
+		}
+		cache[k] = [2]int{t, height}
 
 		for {
 			wind := parsedInput[windIndex]
@@ -194,8 +179,12 @@ func PartOne(input io.Reader) int {
 			}
 		}
 		blocks = append(blocks, block...)
-		currentTop = getNewTop(blocks)
+		for _, b := range block {
+			if b[1] > height {
+				height = b[1]
+			}
+		}
 	}
 
-	return getNewTop(blocks)
+	return height
 }
