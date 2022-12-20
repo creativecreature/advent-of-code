@@ -9,52 +9,56 @@ import (
 	"strings"
 )
 
-type node struct {
+type valve struct {
 	name  string
 	rate  int
 	nodes []string
 }
+type volcano struct {
+	paths     map[string]int
+	valves    map[string]valve
+	valveMaps map[string]map[string]int
+}
 
-type workitem struct {
-	node  node
+type queueItem struct {
+	valve valve
 	count int
 }
 
-var pattern = regexp.MustCompile("Valve (?P<name>[A-Z].) has flow rate=(?P<rate>[0-9]+); tunnels? leads? to valves? (?P<nodes>.*)")
-
-func parseInput(input io.Reader) map[string]node {
+func parseValves(input io.Reader) map[string]valve {
+	pattern := regexp.MustCompile("Valve (?P<name>[A-Z].) has flow rate=(?P<rate>[0-9]+); tunnels? leads? to valves? (?P<nodes>.*)")
 	scanner := bufio.NewScanner(input)
-	nodeMap := make(map[string]node)
+	valves := make(map[string]valve)
 	for scanner.Scan() {
 		match := pattern.FindStringSubmatch(scanner.Text())
 		name := match[pattern.SubexpIndex("name")]
 		rate, _ := strconv.Atoi(match[pattern.SubexpIndex("rate")])
-		nodes := strings.Split(match[pattern.SubexpIndex("nodes")], ", ")
-		node := node{name, rate, nodes}
-		nodeMap[name] = node
+		vs := strings.Split(match[pattern.SubexpIndex("nodes")], ", ")
+		v := valve{name, rate, vs}
+		valves[name] = v
 	}
-	return nodeMap
+	return valves
 }
 
-func generateNodeMaps(nodes map[string]node) map[string]map[string]int {
+func createValveMaps(nodes map[string]valve) map[string]map[string]int {
 	nodemap := map[string]map[string]int{}
 	for _, n := range nodes {
 		nodeMap := make(map[string]int)
-		queue := []workitem{{n, 0}}
+		queue := []queueItem{{n, 0}}
 
 		for len(queue) > 0 {
 			currentItem := queue[0]
 			queue = queue[1:]
 
-			if _, ok := nodeMap[currentItem.node.name]; ok {
+			if _, ok := nodeMap[currentItem.valve.name]; ok {
 				continue
 			}
 
-			nodeMap[currentItem.node.name] = currentItem.count
+			nodeMap[currentItem.valve.name] = currentItem.count
 
-			for _, c := range currentItem.node.nodes {
+			for _, c := range currentItem.valve.nodes {
 				child := nodes[c]
-				queue = append(queue, workitem{node: child, count: currentItem.count + 1})
+				queue = append(queue, queueItem{valve: child, count: currentItem.count + 1})
 			}
 		}
 
@@ -70,12 +74,22 @@ func generateNodeMaps(nodes map[string]node) map[string]map[string]int {
 	return nodemap
 }
 
-func calculatePaths(current, path string, seen map[string]bool, score, stepsLeft int, scores map[string]int, nodemaps map[string]map[string]int, nodes map[string]node) {
-	seen[current] = true
-	score = score + (nodes[current].rate * stepsLeft)
-	scores[path+current] = score
+func newVolcano(input io.Reader) *volcano {
+	valves := parseValves(input)
+	valvesMaps := createValveMaps(valves)
+	return &volcano{
+		paths:     make(map[string]int),
+		valves:    valves,
+		valveMaps: valvesMaps,
+	}
+}
 
-	currentNodemap := nodemaps[current]
+func (v *volcano) calculatePaths(current, path string, seen map[string]bool, score, stepsLeft int) {
+	seen[current] = true
+	score = score + (v.valves[current].rate * stepsLeft)
+	v.paths[path+current] = score
+
+	currentNodemap := v.valveMaps[current]
 	for key, dist := range currentNodemap {
 		if seen[key] {
 			continue
@@ -87,7 +101,7 @@ func calculatePaths(current, path string, seen map[string]bool, score, stepsLeft
 		for k, v := range seen {
 			newSeen[k] = v
 		}
-		calculatePaths(key, path+current, newSeen, score, stepsLeft-(dist+1), scores, nodemaps, nodes)
+		v.calculatePaths(key, path+current, newSeen, score, stepsLeft-(dist+1))
 	}
 }
 
@@ -110,40 +124,27 @@ func overlaps(s1, s2 string) bool {
 	return false
 }
 
-func PartOne(input io.Reader) int {
-	nodes := parseInput(input)
-	nodemaps := generateNodeMaps(nodes)
-	scores := make(map[string]int)
-	visited := make(map[string]bool)
-	calculatePaths("AA", "", visited, 0, 30, scores, nodemaps, nodes)
-
+func (v *volcano) getBestPath() int {
 	bestScore := 0
-	for _, score := range scores {
+	for _, score := range v.paths {
 		if score > bestScore {
 			bestScore = score
 		}
 	}
-
 	return bestScore
 }
 
-func PartTwo(input io.Reader) int {
-	nodes := parseInput(input)
-	nodemaps := generateNodeMaps(nodes)
-	scores := make(map[string]int)
-	visited := make(map[string]bool)
-	calculatePaths("AA", "", visited, 0, 26, scores, nodemaps, nodes)
-
+func (v *volcano) getBestUniquePaths() int {
 	// This is a kinda hacky way to reduce the number of paths
-	for s := range scores {
-		if len(s) < 14 || scores[s] < 1000 {
-			delete(scores, s)
+	for s := range v.paths {
+		if len(s) < 14 || v.paths[s] < 1000 {
+			delete(v.paths, s)
 		}
 	}
 
 	bestScore := 0
-	for pathOne, scoreOne := range scores {
-		for pathTwo, scoreTwo := range scores {
+	for pathOne, scoreOne := range v.paths {
+		for pathTwo, scoreTwo := range v.paths {
 			if !overlaps(pathOne, pathTwo) {
 				score := scoreOne + scoreTwo
 				if score > bestScore {
@@ -154,4 +155,18 @@ func PartTwo(input io.Reader) int {
 	}
 
 	return bestScore
+}
+
+func PartOne(input io.Reader) int {
+	v := newVolcano(input)
+	visited := make(map[string]bool)
+	v.calculatePaths("AA", "", visited, 0, 30)
+	return v.getBestPath()
+}
+
+func PartTwo(input io.Reader) int {
+	v := newVolcano(input)
+	visited := make(map[string]bool)
+	v.calculatePaths("AA", "", visited, 0, 26)
+	return v.getBestUniquePaths()
 }
