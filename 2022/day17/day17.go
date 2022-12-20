@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -79,35 +81,73 @@ func moveUp(block [][]int) [][]int {
 	return block
 }
 
-// var parsedInput = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
-
 func createKey(x, y int) string {
 	return fmt.Sprintf("%d-%d", x, y)
 }
 
-func checkCollision(seen map[string]bool, block [][]int) bool {
-	for _, pos := range block {
-		key := createKey(pos[0], pos[1])
-		if seen[key] {
+func parseKey(s string) []int {
+	keys := strings.Split(s, "-")
+	x, err := strconv.Atoi(keys[0])
+	if err != nil {
+		panic(err)
+	}
+	y, err := strconv.Atoi(keys[1])
+	if err != nil {
+		panic(err)
+	}
+	return []int{x, y}
+}
+
+func checkCollision(blocks [][]int, block [][]int) bool {
+	fmt.Println("CHECK")
+	blockPositions := make(map[string]bool)
+	for _, b := range block {
+		key := createKey(b[0], b[1])
+		blockPositions[key] = true
+	}
+
+	stop := int(math.Max(float64(len(blocks)-100), 0))
+	for i := len(blocks) - 1; i >= stop; i-- {
+		key := createKey(blocks[i][0], blocks[i][1])
+		if blockPositions[key] {
 			return true
 		}
 	}
+
+	fmt.Println("STOP CHECK")
 	return false
 }
 
-func getNewTop(seen map[string]bool) int {
+func getNewTop(blocks [][]int) int {
 	max := 0
-	for key := range seen {
-		pos := strings.Split(key, "-")
-		y, err := strconv.Atoi(pos[1])
-		if err != nil {
-			panic(err)
-		}
-		if y > max {
-			max = y
+	for i := range blocks {
+		if blocks[i][1] > max {
+			max = blocks[i][1]
 		}
 	}
 	return max
+}
+
+// We'll create a "hash" of the highest block position in each column along with the block type
+// and wind. Later, if we've seen this exact state before, we can fast-forward.
+func createGameStateHash(wind rune, blockType int, blocks [][]int) string {
+	peaks := make([]int, 7)
+	stop := int(math.Max(float64(len(blocks)-100), 0))
+	for i := len(blocks) - 1; i >= stop; i-- {
+		x, y := blocks[i][0], blocks[i][1]
+		if y > peaks[x] {
+			peaks[x] = y
+		}
+	}
+	sort.Ints(peaks)
+
+	peakHash := ""
+	for _, peak := range peaks {
+		peakHash = peakHash + fmt.Sprintf("%d", peak-peaks[0]) // Normalize with the min value
+	}
+
+	hash := fmt.Sprintf("%s-%d-%s", string(wind), blockType, peakHash)
+	return hash
 }
 
 func PartOne(input io.Reader) int {
@@ -117,43 +157,45 @@ func PartOne(input io.Reader) int {
 		parsedInput = scanner.Text()
 	}
 
-	// Push the floor into the "seen" map
-	seen := make(map[string]bool)
+	// Push the floor into the "blocks" map
+	blocks := [][]int{}
+
+	// gamestateHashes := make(map[string]bool)
 	for i := 0; i < 7; i++ {
-		key := createKey(i, 0)
-		seen[key] = true
+		blocks = append(blocks, []int{i, 0})
 	}
 
 	windIndex := 0
 	currentTop := 0
 	for t := currentTop; t < 2022; t++ {
-		block := getBlock(t%5, currentTop+4)
+		blockIndex := t % 5
+		block := getBlock(blockIndex, currentTop+4)
+		// hash := createGameStateHash(rune(wind), blockIndex, blocks)
+
 		for {
-			w := parsedInput[windIndex]
-			if w == '<' {
+			wind := parsedInput[windIndex]
+			// gamestateHashes[hash] = true
+			if wind == '<' {
 				moveLeft(block)
-				if checkCollision(seen, block) {
+				if checkCollision(blocks, block) {
 					moveRight(block)
 				}
 			} else {
 				moveRight(block)
-				if checkCollision(seen, block) {
+				if checkCollision(blocks, block) {
 					moveLeft(block)
 				}
 			}
 			windIndex = (windIndex + 1) % len(parsedInput)
 			moveDown(block)
-			if checkCollision(seen, block) {
+			if checkCollision(blocks, block) {
 				moveUp(block)
 				break
 			}
 		}
-		for _, pos := range block {
-			key := createKey(pos[0], pos[1])
-			seen[key] = true
-		}
-		currentTop = getNewTop(seen)
+		blocks = append(blocks, block...)
+		currentTop = getNewTop(blocks)
 	}
 
-	return getNewTop(seen)
+	return getNewTop(blocks)
 }
