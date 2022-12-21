@@ -32,3 +32,29 @@ func TestPartOneRealInput(t *testing.T) {
 		t.Errorf("wanted %d; got %d", want, got)
 	}
 }
+
+func TestPartTwoExampleInput(t *testing.T) {
+	input, err := os.Open("./testdata/example.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := 1514285714288
+	got := day17.PartTwo(input)
+	if want != got {
+		t.Errorf("wanted %d; got %d", want, got)
+	}
+}
+
+func TestPartTwoRealInput(t *testing.T) {
+	input, err := os.Open("./testdata/input.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := 1577650429835
+	got := day17.PartTwo(input)
+	if want != got {
+		t.Errorf("wanted %d; got %d", want, got)
+	}
+}

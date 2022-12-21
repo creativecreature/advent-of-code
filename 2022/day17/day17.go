@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"strconv"
-	"strings"
 )
 
 func getBlock(blockType, y int) [][]int {
@@ -80,33 +78,17 @@ func moveUp(block [][]int) [][]int {
 	return block
 }
 
-func createKey(x, y int) string {
-	return fmt.Sprintf("%d-%d", x, y)
-}
-
-func parseKey(s string) []int {
-	keys := strings.Split(s, "-")
-	x, err := strconv.Atoi(keys[0])
-	if err != nil {
-		panic(err)
-	}
-	y, err := strconv.Atoi(keys[1])
-	if err != nil {
-		panic(err)
-	}
-	return []int{x, y}
-}
-
 func checkCollision(blocks [][]int, block [][]int) bool {
 	blockPositions := make(map[string]bool)
 	for _, b := range block {
-		key := createKey(b[0], b[1])
+		key := fmt.Sprintf("%d-%d", b[0], b[1])
 		blockPositions[key] = true
 	}
 
+	// Compare against last 300 blocks
 	stop := int(math.Max(float64(len(blocks)-300), 0))
 	for i := len(blocks) - 1; i >= stop; i-- {
-		key := createKey(blocks[i][0], blocks[i][1])
+		key := fmt.Sprintf("%d-%d", blocks[i][0], blocks[i][1])
 		if blockPositions[key] {
 			return true
 		}
@@ -115,17 +97,7 @@ func checkCollision(blocks [][]int, block [][]int) bool {
 	return false
 }
 
-func getNewTop(blocks [][]int) int {
-	max := 0
-	for i := range blocks {
-		if blocks[i][1] > max {
-			max = blocks[i][1]
-		}
-	}
-	return max
-}
-
-func PartOne(input io.Reader) int {
+func getHeight(input io.Reader, numOfBlocks int) int {
 	var parsedInput string
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -134,25 +106,19 @@ func PartOne(input io.Reader) int {
 
 	// Push the floor into the "blocks" map
 	blocks := [][]int{}
-
-	// gamestateHashes := make(map[string]bool)
 	for i := 0; i < 7; i++ {
 		blocks = append(blocks, []int{i, 0})
 	}
 
 	cache := map[[2]int][2]int{}
 	height, windIndex := 0, 0
-	for t := 0; t < 1000000000000-t; t++ {
-		// Part one:
-		// if t == 2022 {
-		// return heigh
-		// }
+	for t := 0; t < numOfBlocks; t++ {
 		blockIndex := t % 5
 		block := getBlock(blockIndex, height+4)
-		k := [2]int{t % 5, windIndex}
+		k := [2]int{blockIndex, windIndex}
 		if c, ok := cache[k]; ok {
-			if n, d := 1000000000000-t, t-c[0]; n%d == 0 {
-				return height + n/d*(height-c[1])
+			if blocksLeft, d := numOfBlocks-t, t-c[0]; blocksLeft%d == 0 {
+				return height + blocksLeft/d*(height-c[1])
 			}
 		}
 		cache[k] = [2]int{t, height}
@@ -187,4 +153,12 @@ func PartOne(input io.Reader) int {
 	}
 
 	return height
+}
+
+func PartOne(input io.Reader) int {
+	return getHeight(input, 2022)
+}
+
+func PartTwo(input io.Reader) int {
+	return getHeight(input, 1000000000000)
 }
