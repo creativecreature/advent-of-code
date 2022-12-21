@@ -132,9 +132,9 @@ func findBestPath(bp blueprint, minutes int, bal balance, robots, queue []robot)
 	bestChild := 0
 	for _, r := range bp.robots {
 		newRobots := []robot{}
-		copy(newRobots, robots)
+		newRobots = append(newRobots, robots...)
 		newQueue := []robot{}
-		copy(newQueue, queue)
+		newQueue = append(newQueue, queue...)
 		newQueue = append(newQueue, r)
 		res := findBestPath(bp, minutes-1, bal, newRobots, newQueue)
 		bestChild = int(math.Max(float64(bestChild), float64(res)))
@@ -148,7 +148,7 @@ func PartOne(input io.Reader) int {
 	firstOreRobot := robot{
 		produces: Ore,
 	}
-	res := findBestPath(blueprints[0], 16, balance{}, []robot{firstOreRobot}, []robot{})
+	res := findBestPath(blueprints[0], 24, balance{}, []robot{firstOreRobot}, []robot{})
 	fmt.Println(res)
 	return -1
 }
