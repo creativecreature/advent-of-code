@@ -2,153 +2,150 @@ package day19
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"math"
 	"regexp"
 	"strconv"
 )
 
-type ResourceType uint8
-
-const (
-	Ore ResourceType = iota
-	Clay
-	Obsidian
-	Geode
-)
-
-type cost struct {
-	resourceType ResourceType
-	value        int
-}
-
-type robot struct {
-	cost     []cost
-	produces ResourceType
-}
-
 type blueprint struct {
-	id     int
-	robots []robot
+	id        int
+	robots    [4][][2]int
+	maxNeeded [4]int
 }
 
-type balance struct {
-	ores     int
-	clay     int
-	obsidian int
-	geode    int
-}
+type balance [4]int
+
+const geode = 3
 
 var (
-	blueprintPattern     = regexp.MustCompile("Blueprint (?P<id>[0-9]+):")
-	oreRobotPattern      = regexp.MustCompile("ore robot costs (?P<ore>[0-9]+) ore")
-	clayRobotPattern     = regexp.MustCompile("clay robot costs (?P<ore>[0-9]+) ore")
-	obsidianRobotPattern = regexp.MustCompile("obsidian robot costs (?P<ore>[0-9]+) ore and (?P<clay>[0-9]+) clay")
-	geodeRobotPattern    = regexp.MustCompile("Each geode robot costs (?P<ore>[0-9]+) ore and (?P<obsidian>[0-9]+) obsidian")
+	blueprintPattern = regexp.MustCompile("Blueprint (?P<id>[0-9]+):")
+	orePattern       = regexp.MustCompile("ore robot costs (?P<ore>[0-9]+) ore")
+	clayPattern      = regexp.MustCompile("clay robot costs (?P<ore>[0-9]+) ore")
+	obsidianPattern  = regexp.MustCompile("obsidian robot costs (?P<ore>[0-9]+) ore and (?P<clay>[0-9]+) clay")
+	geodePattern     = regexp.MustCompile("Each geode robot costs (?P<ore>[0-9]+) ore and (?P<obsidian>[0-9]+) obsidian")
 )
+
+func max(val ...int) int {
+	m := 0
+	for _, v := range val {
+		if v > m {
+			m = v
+		}
+	}
+	return m
+}
 
 func parseInput(input io.Reader) []blueprint {
 	scanner := bufio.NewScanner(input)
 	blueprints := make([]blueprint, 0)
 	for scanner.Scan() {
 		text := scanner.Text()
-		oreRobotMatch := oreRobotPattern.FindStringSubmatch(text)
-		oreRobotCost, _ := strconv.Atoi(oreRobotMatch[oreRobotPattern.SubexpIndex("ore")])
-		oreRobot := robot{cost: []cost{{Ore, oreRobotCost}}, produces: Ore}
-		clayRobotMatch := clayRobotPattern.FindStringSubmatch(text)
-		clayRobotCost, _ := strconv.Atoi(clayRobotMatch[clayRobotPattern.SubexpIndex("ore")])
-		clayRobot := robot{cost: []cost{{Ore, clayRobotCost}}, produces: Clay}
-		obsidianRobotMatch := obsidianRobotPattern.FindStringSubmatch(text)
-		obsidianRobotOreCost, _ := strconv.Atoi(obsidianRobotMatch[obsidianRobotPattern.SubexpIndex("ore")])
-		obsidianRobotClayCost, _ := strconv.Atoi(obsidianRobotMatch[obsidianRobotPattern.SubexpIndex("ore")])
-		obsidianRobot := robot{cost: []cost{{Ore, obsidianRobotOreCost}, {Clay, obsidianRobotClayCost}}, produces: Obsidian}
-		geodeRobotMatch := geodeRobotPattern.FindStringSubmatch(text)
-		geodeRobotCost, _ := strconv.Atoi(geodeRobotMatch[geodeRobotPattern.SubexpIndex("ore")])
-		geodeRobot := robot{cost: []cost{{Obsidian, geodeRobotCost}}, produces: Geode}
+		oreCost, _ := strconv.Atoi(orePattern.FindStringSubmatch(text)[orePattern.SubexpIndex("ore")])
+		clayCost, _ := strconv.Atoi(clayPattern.FindStringSubmatch(text)[clayPattern.SubexpIndex("ore")])
+		obsidianOreCost, _ := strconv.Atoi(obsidianPattern.FindStringSubmatch(text)[obsidianPattern.SubexpIndex("ore")])
+		obsidianClayCost, _ := strconv.Atoi(obsidianPattern.FindStringSubmatch(text)[obsidianPattern.SubexpIndex("clay")])
+		geodeOreCost, _ := strconv.Atoi(geodePattern.FindStringSubmatch(text)[geodePattern.SubexpIndex("ore")])
+		geodeObsidianCost, _ := strconv.Atoi(geodePattern.FindStringSubmatch(text)[geodePattern.SubexpIndex("obsidian")])
 		blueprintMatch := blueprintPattern.FindStringSubmatch(text)
 		id, _ := strconv.Atoi(blueprintMatch[blueprintPattern.SubexpIndex("id")])
-		blueprints = append(blueprints, blueprint{id, []robot{oreRobot, clayRobot, obsidianRobot, geodeRobot}})
+		robots := [4][][2]int{
+			{{oreCost, 0}},
+			{{clayCost, 0}},
+			{{obsidianOreCost, 0}, {obsidianClayCost, 1}},
+			{{geodeOreCost, 0}, {geodeObsidianCost, 2}},
+		}
+		maxOre := max(oreCost, clayCost, obsidianOreCost)
+		maxNeeded := [4]int{maxOre, obsidianClayCost, geodeObsidianCost, math.MaxInt}
+		blueprints = append(blueprints, blueprint{id, robots, maxNeeded})
 	}
 	return blueprints
 }
 
-func findBestPath(bp blueprint, minutes int, bal balance, robots, queue []robot) int {
-	if minutes < 1 {
-		return bal.geode
+func createCacheKey(bal balance, robots [4]int, minutes int) [9]int {
+	key := [9]int{}
+	copy(key[:], bal[:])
+	copy(key[2:], robots[:])
+	key[8] = minutes
+	return key
+}
+
+func dfs(bp blueprint, bal balance, robots [4]int, cache map[[9]int]int, minutes int) int {
+	if minutes == 0 {
+		return bal[geode]
 	}
 
-	// Add whatever the robots produced to the balance
-	for _, robot := range robots {
-		switch robot.produces {
-		case Ore:
-			bal.ores++
-		case Clay:
-			bal.clay++
-		case Obsidian:
-			bal.obsidian++
-		case Geode:
-			bal.geode++
-		default:
-			panic("Produces unknown resource type")
+	key := createCacheKey(bal, robots, minutes)
+	if v, ok := cache[key]; ok {
+		return v
+	}
+
+	// Default max to doing nothing
+	max := bal[geode] + (robots[geode] * minutes)
+	for robotType, robotResources := range bp.robots {
+		// Check if we want any more of these robots.
+		// We always want more geode robots
+		if robotType != geode && robots[robotType] >= bp.maxNeeded[robotType] {
+			continue
 		}
-	}
 
-	if len(queue) > 0 {
-		robotToProduce := queue[0]
-		canBuildRobot := true
-		for _, cost := range robotToProduce.cost {
-			switch cost.resourceType {
-			case Ore:
-				canBuildRobot = bal.ores >= cost.value
-			case Clay:
-				canBuildRobot = bal.clay >= cost.value
-			case Obsidian:
-				canBuildRobot = bal.obsidian >= cost.value
-			default:
-				panic("Unknown resource type")
-			}
-			if !canBuildRobot {
+		wait, canBuildBot := 0, true
+		for _, resourceNeeded := range robotResources {
+			resourceCost, resourceType := resourceNeeded[0], resourceNeeded[1]
+			if robots[resourceType] == 0 {
+				canBuildBot = false
 				break
 			}
-		}
-
-		if canBuildRobot {
-			for _, cost := range robotToProduce.cost {
-				switch cost.resourceType {
-				case Ore:
-					bal.ores = bal.ores - cost.value
-				case Clay:
-					bal.clay = bal.clay - cost.value
-				case Obsidian:
-					bal.clay = bal.clay - cost.value
+			if bal[resourceType] < resourceCost {
+				value, timetoWait := bal[resourceType], 0
+				for resourceCost > value {
+					timetoWait++
+					value += robots[resourceType]
 				}
+				wait = int(math.Max(float64(wait), float64(timetoWait)))
 			}
-			robots = append(robots, robotToProduce)
-			queue = queue[1:]
+		}
+
+		if canBuildBot {
+			remTime := minutes - wait - 1
+			if remTime <= 0 {
+				continue
+			}
+			newBal, newRobots := balance{}, [4]int{}
+			copy(newBal[:], bal[:])
+			copy(newRobots[:], robots[:])
+			for i := range newBal {
+				newBal[i] = newBal[i] + (newRobots[i] * (wait + 1))
+			}
+			for _, resourceNeeded := range robotResources {
+				resourceCost, resourceType := resourceNeeded[0], resourceNeeded[1]
+				newBal[resourceType] -= resourceCost
+			}
+			newRobots[robotType]++
+			res := dfs(bp, newBal, newRobots, cache, remTime)
+			if res > max {
+				max = res
+			}
 		}
 	}
-
-	bestChild := 0
-	for _, r := range bp.robots {
-		newRobots := []robot{}
-		newRobots = append(newRobots, robots...)
-		newQueue := []robot{}
-		newQueue = append(newQueue, queue...)
-		newQueue = append(newQueue, r)
-		res := findBestPath(bp, minutes-1, bal, newRobots, newQueue)
-		bestChild = int(math.Max(float64(bestChild), float64(res)))
-	}
-
-	return bal.geode + bestChild
+	cache[key] = max
+	return max
 }
 
 func PartOne(input io.Reader) int {
 	blueprints := parseInput(input)
-	firstOreRobot := robot{
-		produces: Ore,
+	total := 0
+	for _, bp := range blueprints {
+		total = total + bp.id*dfs(bp, balance{}, [4]int{1, 0, 0, 0}, map[[9]int]int{}, 24)
 	}
-	res := findBestPath(blueprints[0], 24, balance{}, []robot{firstOreRobot}, []robot{})
-	fmt.Println(res)
-	return -1
+	return total
+}
+
+func PartTwo(input io.Reader) int {
+	blueprints := parseInput(input)
+	total := 1
+	for _, bp := range blueprints {
+		total *= dfs(bp, balance{}, [4]int{1, 0, 0, 0}, map[[9]int]int{}, 32)
+	}
+	return total
 }
