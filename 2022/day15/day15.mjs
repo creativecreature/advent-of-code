@@ -58,23 +58,6 @@ function part2() {
 
   const maxCoordinate = input.length === 14 ? 20 : 4000000
 
-  // Dummy implementation
-  // for (let y = 0; y < maxCoordinate; y++) {
-  //   for (let x = 0; x < maxCoordinate; x++) {
-  //     let found = false;
-  //     for (const { sensor, beacon, dist } of input) {
-  //       if (distance({ x, y }, sensor) <= dist) {
-  //         found = true;
-  //         break;
-  //       }
-  //     }
-  //     if (!found) {
-  //       console.log(x * 4000000 + y);
-  //       return;
-  //     }
-  //   }
-  // }
-
   for (let y = 0; y < maxCoordinate; y++) {
     const intervals = []
     for (const { sensor, dist } of input) {
