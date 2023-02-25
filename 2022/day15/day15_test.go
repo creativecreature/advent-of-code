@@ -7,30 +7,20 @@ import (
 	"day15"
 )
 
-func TestPartOneExampleData(t *testing.T) {
-	input, err := os.Open("./testdata/example.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := 26
-	got := day15.PartOne(input)
-
-	if got != want {
-		t.Errorf("wanted %d; got %d", want, got)
-	}
-}
-
-func TestPartOneRealData(t *testing.T) {
+func TestPartOneTwoRealData(t *testing.T) {
 	input, err := os.Open("./testdata/input.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want := 26
-	got := day15.PartOne(input)
+	wantPartOne, wantPartTwo := 4724228, 13622251246513
+	gotPartOne, gotPartTwo := day15.PartOneTwo(input)
 
-	if got != want {
-		t.Errorf("wanted %d; got %d", want, got)
+	if gotPartOne != wantPartOne {
+		t.Errorf("wanted %d; got %d", wantPartOne, gotPartOne)
+	}
+
+	if gotPartTwo != wantPartTwo {
+		t.Errorf("wanted %d; got %d", wantPartTwo, gotPartTwo)
 	}
 }
